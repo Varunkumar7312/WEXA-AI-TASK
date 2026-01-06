@@ -118,7 +118,7 @@
       </div>
     </div>
 
-  <!-- PRODUCTS PAGE -->
+    <!-- PRODUCTS PAGE -->
     <div id="products" class="page">
       <h2 style="margin-bottom: 20px;">Products</h2>
       <button onclick="toggleProductForm()" style="margin-bottom: 20px;">+ Add New Product</button>
@@ -230,8 +230,8 @@
           }
         });
       });
-    });  
-    
+    });
+
     function toggleAuthMode() {
       isSignupMode = !isSignupMode;
       document.getElementById('orgNameGroup').classList.toggle('hidden');
@@ -248,4 +248,45 @@
       if (!email || !password) {
         showAlert(alertDiv, 'Please fill all fields', 'error');
         return;
+      }
+
+      try {
+        if (isSignupMode) {
+          const organizationName = document.getElementById('authOrgName').value;
+          if (!organizationName) {
+            showAlert(alertDiv, 'Organization name required', 'error');
+            return;
+          }
+
+          const res = await fetch(`${API_URL}/signup`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password, organizationName })
+          });
+
+          if (!res.ok) throw new Error('Signup failed');
+          showAlert(alertDiv, 'Signup successful! Please login.', 'success');
+          toggleAuthMode();
+          document.getElementById('authEmail').value = '';
+          document.getElementById('authPassword').value = '';
+        } else {
+          const res = await fetch(`${API_URL}/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+          });
+
+          if (!res.ok) throw new Error('Login failed');
+          const data = await res.json();
+          token = data.token;
+          currentOrgId = data.orgId;
+          localStorage.setItem('token', token);
+          localStorage.setItem('orgId', currentOrgId);
+          document.getElementById('nav').style.display = 'flex';
+          showPage('dashboard');
+          loadDashboard();
+        }
+      } catch (err) {
+        showAlert(alertDiv, err.message, 'error');
+      }
     }
