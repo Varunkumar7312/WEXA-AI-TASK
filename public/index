@@ -290,3 +290,129 @@
         showAlert(alertDiv, err.message, 'error');
       }
     }
+
+     function logout() {
+      token = null;
+      currentOrgId = null;
+      localStorage.removeItem('token');
+      localStorage.removeItem('orgId');
+      document.getElementById('nav').style.display = 'none';
+      showPage('auth');
+    }
+
+    async function loadDashboard() {
+      try {
+        const res = await fetch(`${API_URL}/dashboard`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        document.getElementById('totalProducts').textContent = data.totalProducts;
+        document.getElementById('totalQuantity').textContent = data.totalQuantity;
+
+        const tbody = document.getElementById('lowStockBody');
+        if (data.lowStockItems.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" class="text-center">No low stock items</td></tr>';
+        } else {
+          tbody.innerHTML = data.lowStockItems.map(item => `
+            <tr>
+              <td>${item.name}</td>
+              <td>${item.sku}</td>
+              <td><strong>${item.quantityOnHand}</strong></td>
+              <td>${item.lowStockThreshold || data.defaultLowStockThreshold}</td>
+            </tr>
+          `).join('');
+        }
+      } catch (err) {
+        console.error('Error:', err);
+      }
+    }
+
+    function toggleProductForm() {
+      document.getElementById('productFormDiv').classList.toggle('hidden');
+      if (!document.getElementById('productFormDiv').classList.contains('hidden')) {
+        clearProductForm();
+      }
+    }
+
+    async function loadProducts() {
+      try {
+        const res = await fetch(`${API_URL}/products`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const products = await res.json();
+        const tbody = document.getElementById('productsBody');
+
+        if (products.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" class="text-center">No products yet</td></tr>';
+        } else {
+          tbody.innerHTML = products.map(p => `
+            <tr>
+              <td>${p.name}</td>
+              <td>${p.sku}</td>
+              <td>${p.quantityOnHand}</td>
+              <td>₹${p.sellingPrice || '-'}</td>
+              <td>
+                <div class="actions">
+                  <button onclick="editProduct('${p.id}')" style="background: #17a2b8;">Edit</button>
+                  <button onclick="deleteProduct('${p.id}')" class="danger">Delete</button>
+                </div>
+              </td>
+            </tr>
+          `).join('');
+        }
+      } catch (err) {
+        console.error('Error:', err);
+      }
+    }
+
+    function clearProductForm() {
+      document.getElementById('productName').value = '';
+      document.getElementById('productSKU').value = '';
+      document.getElementById('productDescription').value = '';
+      document.getElementById('productQuantity').value = '0';
+      document.getElementById('productCostPrice').value = '';
+      document.getElementById('productSellingPrice').value = '';
+      document.getElementById('productLowStockThreshold').value = '';
+      currentEditProductId = null;
+    }
+
+    async function saveProduct() {
+      const name = document.getElementById('productName').value;
+      const sku = document.getElementById('productSKU').value;
+
+      if (!name || !sku) {
+        alert('Please fill Name and SKU');
+        return;
+      }
+
+      const payload = {
+        name,
+        sku,
+        description: document.getElementById('productDescription').value,
+        quantityOnHand: parseInt(document.getElementById('productQuantity').value),
+        costPrice: parseFloat(document.getElementById('productCostPrice').value) || null,
+        sellingPrice: parseFloat(document.getElementById('productSellingPrice').value) || null,
+        lowStockThreshold: parseInt(document.getElementById('productLowStockThreshold').value) || null
+      };
+
+      try {
+        const method = currentEditProductId ? 'PUT' : 'POST';
+        const url = currentEditProductId ? `${API_URL}/products/${currentEditProductId}` : `${API_URL}/products`;
+
+        const res = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error('Failed to save product');
+        alert('Product saved!');
+        toggleProductForm();
+        loadProducts();
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
