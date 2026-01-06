@@ -416,3 +416,87 @@
         alert('Error: ' + err.message);
       }
     }
+
+    
+    async function editProduct(productId) {
+      try {
+        const res = await fetch(`${API_URL}/products`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const products = await res.json();
+        const product = products.find(p => p.id === productId);
+
+        if (product) {
+          document.getElementById('productName').value = product.name;
+          document.getElementById('productSKU').value = product.sku;
+          document.getElementById('productDescription').value = product.description || '';
+          document.getElementById('productQuantity').value = product.quantityOnHand;
+          document.getElementById('productCostPrice').value = product.costPrice || '';
+          document.getElementById('productSellingPrice').value = product.sellingPrice || '';
+          document.getElementById('productLowStockThreshold').value = product.lowStockThreshold || '';
+          currentEditProductId = productId;
+          document.getElementById('productFormDiv').classList.remove('hidden');
+        }
+      } catch (err) {
+        console.error('Error:', err);
+      }
+    }
+
+    async function deleteProduct(productId) {
+      if (!confirm('Are you sure?')) return;
+
+      try {
+        const res = await fetch(`${API_URL}/products/${productId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!res.ok) throw new Error('Failed to delete');
+        alert('Product deleted!');
+        loadProducts();
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    async function loadSettings() {
+      try {
+        const res = await fetch(`${API_URL}/dashboard`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        document.getElementById('defaultThreshold').value = data.defaultLowStockThreshold || 5;
+      } catch (err) {
+        console.error('Error:', err);
+      }
+    }
+
+    async function saveSettings() {
+      const threshold = parseInt(document.getElementById('defaultThreshold').value);
+
+      try {
+        const res = await fetch(`${API_URL}/settings`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ defaultLowStockThreshold: threshold })
+        });
+
+        if (!res.ok) throw new Error('Failed to save');
+        showAlert(document.getElementById('settingsAlert'), 'Settings saved!', 'success');
+      } catch (err) {
+        showAlert(document.getElementById('settingsAlert'), 'Error: ' + err.message, 'error');
+      }
+    }
+
+    function showAlert(element, message, type) {
+      element.innerHTML = `<div class="alert ${type}">${message}</div>`;
+      if (type === 'success') {
+        setTimeout(() => { element.innerHTML = ''; }, 3000);
+      }
+    }
+  </script>
+</body>
+</html>
