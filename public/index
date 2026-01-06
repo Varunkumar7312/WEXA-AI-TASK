@@ -231,3 +231,21 @@
         });
       });
     });  
+    
+    function toggleAuthMode() {
+      isSignupMode = !isSignupMode;
+      document.getElementById('orgNameGroup').classList.toggle('hidden');
+      document.getElementById('authToggle').textContent = isSignupMode ? 'Back to Login' : 'Create Account';
+      document.getElementById('authSubmitText').textContent = isSignupMode ? 'Sign Up' : 'Login';
+      document.getElementById('authAlert').innerHTML = '';
+    }
+
+    async function handleAuth() {
+      const email = document.getElementById('authEmail').value;
+      const password = document.getElementById('authPassword').value;
+      const alertDiv = document.getElementById('authAlert');
+
+      if (!email || !password) {
+        showAlert(alertDiv, 'Please fill all fields', 'error');
+        return;
+    }
