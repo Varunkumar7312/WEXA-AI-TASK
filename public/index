@@ -118,4 +118,116 @@
       </div>
     </div>
 
-    
+  <!-- PRODUCTS PAGE -->
+    <div id="products" class="page">
+      <h2 style="margin-bottom: 20px;">Products</h2>
+      <button onclick="toggleProductForm()" style="margin-bottom: 20px;">+ Add New Product</button>
+      
+      <div id="productFormDiv" class="card hidden">
+        <h3 style="margin-bottom: 15px;">Add/Edit Product</h3>
+        <div class="form-group">
+          <label>Product Name *</label>
+          <input type="text" id="productName" placeholder="e.g., USB Cable">
+        </div>
+        <div class="form-group">
+          <label>SKU (Unique) *</label>
+          <input type="text" id="productSKU" placeholder="e.g., USB-001">
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="productDescription" placeholder="Product details..." rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Quantity on Hand</label>
+          <input type="number" id="productQuantity" placeholder="0" value="0">
+        </div>
+        <div class="form-group">
+          <label>Cost Price (₹)</label>
+          <input type="number" id="productCostPrice" placeholder="0.00" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Selling Price (₹)</label>
+          <input type="number" id="productSellingPrice" placeholder="0.00" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Low Stock Threshold</label>
+          <input type="number" id="productLowStockThreshold" placeholder="Leave blank to use default">
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button onclick="saveProduct()">Save Product</button>
+          <button class="secondary" onclick="toggleProductForm()">Cancel</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom: 15px;">All Products</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>SKU</th>
+              <th>Quantity</th>
+              <th>Selling Price</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="productsBody">
+            <tr><td colspan="5" class="text-center">No products yet</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SETTINGS PAGE -->
+    <div id="settings" class="page">
+      <h2 style="margin-bottom: 20px;">Settings</h2>
+      <div class="card" style="max-width: 500px;">
+        <h3 style="margin-bottom: 15px;">Default Low Stock Threshold</h3>
+        <div class="form-group">
+          <label>Default Threshold (units)</label>
+          <input type="number" id="defaultThreshold" value="5">
+        </div>
+        <button onclick="saveSettings()">Save Settings</button>
+        <div id="settingsAlert" style="margin-top: 10px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = 'http://localhost:5000/api';
+    let token = localStorage.getItem('token');
+    let currentOrgId = localStorage.getItem('orgId');
+    let isSignupMode = false;
+    let currentEditProductId = null;
+
+    function showPage(pageName) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById(pageName).classList.add('active');
+      document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+      const navBtn = document.querySelector(`[data-page="${pageName}"]`);
+      if (navBtn) navBtn.classList.add('active');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (token) {
+        showPage('dashboard');
+        document.getElementById('nav').style.display = 'flex';
+        loadDashboard();
+      } else {
+        showPage('auth');
+      }
+
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const page = e.target.dataset.page;
+          if (page === 'logout') {
+            logout();
+          } else {
+            showPage(page);
+            if (page === 'dashboard') loadDashboard();
+            if (page === 'products') loadProducts();
+            if (page === 'settings') loadSettings();
+          }
+        });
+      });
+    });  
