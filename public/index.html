@@ -194,7 +194,7 @@
   </div>
 
   <script>
-    const  API_URL = 'https://wexa-ai-task-1.onrender.com/api';
+    const API_URL = 'https://wexa-ai-task-1.onrender.com/api';
 
     let token = localStorage.getItem('token');
     let currentOrgId = localStorage.getItem('orgId');
@@ -292,7 +292,7 @@
       }
     }
 
-     function logout() {
+    function logout() {
       token = null;
       currentOrgId = null;
       localStorage.removeItem('token');
@@ -418,7 +418,6 @@
       }
     }
 
-    
     async function editProduct(productId) {
       try {
         const res = await fetch(`${API_URL}/products`, {
