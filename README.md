@@ -1,4 +1,4 @@
-StockFlow MVP – Product Requirements 
+StockFlow MVP 
 
 Version: v0.1
 Author: Varun Kumar E
@@ -67,7 +67,7 @@ A user can:
 
 9.## 📁 Application Directory Structure
 
-```text
+```
 StockFlow/
 ├── node_modules/          (created by npm)
 ├── public/
@@ -77,7 +77,6 @@ StockFlow/
 ├── package-lock.json      (dependency versions)
 ├── .env                   (secrets/config)
 └── server.js              ← Backend 
-
-
+```
 
 10.Status: Completed and Tested
