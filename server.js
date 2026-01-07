@@ -13,7 +13,7 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
-// Database Setup - FIXED FOR RENDER
+// Database Setup
 const sequelize = new Sequelize({
   dialect: 'sqlite',
   storage: 'database.sqlite',
@@ -50,6 +50,7 @@ const Product = sequelize.define('Product', {
 Organization.hasMany(User, { foreignKey: 'organizationId' });
 User.belongsTo(Organization, { foreignKey: 'organizationId' });
 Organization.hasMany(Product, { foreignKey: 'organizationId' });
+Product.belongsTo(Organization, { foreignKey: 'organizationId' });
 
 // Auth Middleware
 const verifyToken = (req, res, next) => {
@@ -58,13 +59,14 @@ const verifyToken = (req, res, next) => {
   jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-key', (err, user) => {
     if (err) return res.status(403).json({ error: 'Invalid token' });
     req.user = user;
+    console.log('✅ Token verified - orgId:', req.user.orgId);
     next();
   });
 };
 
-// SIGNUP - FIXED WITH LOGGING
+// SIGNUP
 app.post('/api/signup', async (req, res) => {
-  console.log('Signup request:', req.body);  // LOG FOR DEBUG
+  console.log('📝 Signup request:', req.body);
   
   try {
     const { email, password, organizationName } = req.body;
@@ -84,17 +86,22 @@ app.post('/api/signup', async (req, res) => {
       organizationId: org.id
     });
 
-    console.log('Signup success:', { userId: user.id, orgId: org.id });
-    res.json({ message: 'Signup successful', userId: user.id, orgId: org.id });
+    console.log('✅ Signup success - userId:', user.id, 'orgId:', org.id);
+    res.json({ 
+      message: 'Signup successful', 
+      userId: user.id, 
+      orgId: org.id,
+      organizationId: org.id
+    });
   } catch (err) {
-    console.error('Signup error:', err);
+    console.error('❌ Signup error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
 // LOGIN
 app.post('/api/login', async (req, res) => {
-  console.log('Login request:', req.body);  // LOG FOR DEBUG
+  console.log('🔐 Login request:', req.body);
   
   try {
     const { email, password } = req.body;
@@ -108,10 +115,20 @@ app.post('/api/login', async (req, res) => {
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(400).json({ error: 'Invalid password' });
 
-    const token = jwt.sign({ id: user.id, orgId: user.organizationId }, process.env.JWT_SECRET || 'fallback-secret-key', { expiresIn: '24h' });
-    res.json({ token, userId: user.id, orgId: user.organizationId });
+    const token = jwt.sign(
+      { id: user.id, orgId: user.organizationId }, 
+      process.env.JWT_SECRET || 'fallback-secret-key', 
+      { expiresIn: '24h' }
+    );
+    
+    console.log('✅ Login success - orgId:', user.organizationId);
+    res.json({ 
+      token, 
+      userId: user.id, 
+      orgId: user.organizationId 
+    });
   } catch (err) {
-    console.error('Login error:', err);
+    console.error('❌ Login error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -119,26 +136,44 @@ app.post('/api/login', async (req, res) => {
 // GET PRODUCTS
 app.get('/api/products', verifyToken, async (req, res) => {
   try {
-    const products = await Product.findAll({ where: { organizationId: req.user.orgId } });
+    console.log('📦 Getting products for orgId:', req.user.orgId);
+    const products = await Product.findAll({ 
+      where: { organizationId: req.user.orgId } 
+    });
     res.json(products);
   } catch (err) {
+    console.error('❌ Get products error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
 // CREATE PRODUCT
 app.post('/api/products', verifyToken, async (req, res) => {
-  console.log('Add product request:', req.body);  // LOG FOR DEBUG
+  console.log('➕ Add product request:', req.body);
+  console.log('   Organization ID from token:', req.user.orgId);
   
   try {
     const { name, sku, quantityOnHand, costPrice, sellingPrice, lowStockThreshold, description } = req.body;
+    
+    if (!req.user.orgId) {
+      return res.status(400).json({ error: 'Missing organization ID in token' });
+    }
+
     const product = await Product.create({
       organizationId: req.user.orgId,
-      name, sku, quantityOnHand, costPrice, sellingPrice, lowStockThreshold, description
+      name,
+      sku,
+      quantityOnHand: quantityOnHand || 0,
+      costPrice: costPrice || null,
+      sellingPrice: sellingPrice || null,
+      lowStockThreshold: lowStockThreshold || null,
+      description
     });
+    
+    console.log('✅ Product created:', product.id);
     res.json(product);
   } catch (err) {
-    console.error('Add product error:', err);
+    console.error('❌ Add product error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -146,11 +181,14 @@ app.post('/api/products', verifyToken, async (req, res) => {
 // UPDATE PRODUCT
 app.put('/api/products/:id', verifyToken, async (req, res) => {
   try {
-    const product = await Product.findOne({ where: { id: req.params.id, organizationId: req.user.orgId } });
+    const product = await Product.findOne({ 
+      where: { id: req.params.id, organizationId: req.user.orgId } 
+    });
     if (!product) return res.status(404).json({ error: 'Product not found' });
     await product.update(req.body);
     res.json(product);
   } catch (err) {
+    console.error('❌ Update product error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -158,11 +196,14 @@ app.put('/api/products/:id', verifyToken, async (req, res) => {
 // DELETE PRODUCT
 app.delete('/api/products/:id', verifyToken, async (req, res) => {
   try {
-    const product = await Product.findOne({ where: { id: req.params.id, organizationId: req.user.orgId } });
+    const product = await Product.findOne({ 
+      where: { id: req.params.id, organizationId: req.user.orgId } 
+    });
     if (!product) return res.status(404).json({ error: 'Product not found' });
     await product.destroy();
     res.json({ message: 'Deleted' });
   } catch (err) {
+    console.error('❌ Delete product error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -171,14 +212,22 @@ app.delete('/api/products/:id', verifyToken, async (req, res) => {
 app.get('/api/dashboard', verifyToken, async (req, res) => {
   try {
     const org = await Organization.findByPk(req.user.orgId);
-    const products = await Product.findAll({ where: { organizationId: req.user.orgId } });
+    const products = await Product.findAll({ 
+      where: { organizationId: req.user.orgId } 
+    });
     const totalProducts = products.length;
     const totalQuantity = products.reduce((sum, p) => sum + p.quantityOnHand, 0);
     const threshold = org.defaultLowStockThreshold;
     const lowStockItems = products.filter(p => p.quantityOnHand <= (p.lowStockThreshold || threshold));
 
-    res.json({ totalProducts, totalQuantity, lowStockItems, defaultLowStockThreshold: threshold });
+    res.json({ 
+      totalProducts, 
+      totalQuantity, 
+      lowStockItems, 
+      defaultLowStockThreshold: threshold 
+    });
   } catch (err) {
+    console.error('❌ Dashboard error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -190,6 +239,7 @@ app.put('/api/settings', verifyToken, async (req, res) => {
     await org.update({ defaultLowStockThreshold: req.body.defaultLowStockThreshold });
     res.json(org);
   } catch (err) {
+    console.error('❌ Settings update error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -200,4 +250,4 @@ sequelize.sync({ force: false }).then(() => {
   app.listen(port, () => {
     console.log(`✅ Server running at http://localhost:${port}`);
   });
-}).catch(err => console.error('DB Error:', err));
+}).catch(err => console.error('❌ DB Error:', err));
