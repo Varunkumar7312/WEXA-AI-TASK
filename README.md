@@ -63,19 +63,21 @@ A user can:
 - npm install
 - npm run dev
 - Runs on localhost with auto-created SQLite DB
+  
 
-9.Application Directory Structure
+9.## 📁 Application Directory Structure
 
+```text
 StockFlow/
 ├── node_modules/          (created by npm)
 ├── public/
 │   └── index.html         ← Frontend (all UI)
 ├── database.sqlite        (created when server runs)
-├── package.json            (dependencies+project config)
+├── package.json           (dependencies + project config)
+├── package-lock.json      (dependency versions)
+├── .env                   (secrets/config)
+└── server.js              ← Backend 
 
-├── package-lock.json  (dependencies version)        
-├── .env                            (secrets/config)
-└── server.js              ← Backend (all API)
 
 
 10.Status: Completed and Tested
