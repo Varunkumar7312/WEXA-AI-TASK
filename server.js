@@ -13,9 +13,8 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
-// Database Setup
-const sequelize = new Sequelize('database', 'user', 'password', {
-  host: 'localhost',
+// Database Setup - FIXED FOR RENDER
+const sequelize = new Sequelize({
   dialect: 'sqlite',
   storage: 'database.sqlite',
   logging: false
@@ -56,17 +55,24 @@ Organization.hasMany(Product, { foreignKey: 'organizationId' });
 const verifyToken = (req, res, next) => {
   const token = req.headers['authorization']?.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'No token' });
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+  jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-key', (err, user) => {
     if (err) return res.status(403).json({ error: 'Invalid token' });
     req.user = user;
     next();
   });
 };
 
-// SIGNUP
+// SIGNUP - FIXED WITH LOGGING
 app.post('/api/signup', async (req, res) => {
+  console.log('Signup request:', req.body);  // LOG FOR DEBUG
+  
   try {
     const { email, password, organizationName } = req.body;
+    
+    if (!email || !password || !organizationName) {
+      return res.status(400).json({ error: 'Missing email, password, or organizationName' });
+    }
+    
     const existing = await User.findOne({ where: { email } });
     if (existing) return res.status(400).json({ error: 'User exists' });
 
@@ -78,25 +84,34 @@ app.post('/api/signup', async (req, res) => {
       organizationId: org.id
     });
 
+    console.log('Signup success:', { userId: user.id, orgId: org.id });
     res.json({ message: 'Signup successful', userId: user.id, orgId: org.id });
   } catch (err) {
+    console.error('Signup error:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
 // LOGIN
 app.post('/api/login', async (req, res) => {
+  console.log('Login request:', req.body);  // LOG FOR DEBUG
+  
   try {
     const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Missing email or password' });
+    }
+    
     const user = await User.findOne({ where: { email } });
     if (!user) return res.status(400).json({ error: 'User not found' });
 
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(400).json({ error: 'Invalid password' });
 
-    const token = jwt.sign({ id: user.id, orgId: user.organizationId }, process.env.JWT_SECRET, { expiresIn: '24h' });
+    const token = jwt.sign({ id: user.id, orgId: user.organizationId }, process.env.JWT_SECRET || 'fallback-secret-key', { expiresIn: '24h' });
     res.json({ token, userId: user.id, orgId: user.organizationId });
   } catch (err) {
+    console.error('Login error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -113,6 +128,8 @@ app.get('/api/products', verifyToken, async (req, res) => {
 
 // CREATE PRODUCT
 app.post('/api/products', verifyToken, async (req, res) => {
+  console.log('Add product request:', req.body);  // LOG FOR DEBUG
+  
   try {
     const { name, sku, quantityOnHand, costPrice, sellingPrice, lowStockThreshold, description } = req.body;
     const product = await Product.create({
@@ -121,6 +138,7 @@ app.post('/api/products', verifyToken, async (req, res) => {
     });
     res.json(product);
   } catch (err) {
+    console.error('Add product error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -177,8 +195,9 @@ app.put('/api/settings', verifyToken, async (req, res) => {
 });
 
 // Start Server
-sequelize.sync().then(() => {
-  app.listen(process.env.PORT, () => {
-    console.log(`✅ Server running at http://localhost:${process.env.PORT}`);
+sequelize.sync({ force: false }).then(() => {
+  const port = process.env.PORT || 10000;
+  app.listen(port, () => {
+    console.log(`✅ Server running at http://localhost:${port}`);
   });
 }).catch(err => console.error('DB Error:', err));
